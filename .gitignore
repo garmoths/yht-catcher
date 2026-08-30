@@ -1,0 +1,9 @@
+.env
+.last_notify
+.bot_state.json
+__pycache__/
+*.py[cod]
+.venv/
+debug_page.html
+screenshot.png
+*.log
