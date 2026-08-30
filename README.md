@@ -1,118 +1,81 @@
-# YHT TREN BULUCU 🚂
+# YHT Catcher 🚄
 
-TCDD Yüksek Hızlı Tren (YHT) biletlerini otomatik takip eden, **EKONOMİ sınıfında** boş yer bulunduğunda WhatsApp üzerinden bildirim gönderen Python aracı.
+TCDD YHT seferlerinde boş koltukları düzenli aralıklarla kontrol eden ve uygunluk doğrulandığında WhatsApp bildirimi gönderen terminal uygulaması.
+
+> TCDD Taşımacılık ile resmî bağlantısı yoktur. Makul kontrol aralıklarıyla ve kişisel kullanım amacıyla kullanın.
 
 ## Özellikler
 
-- ✅ İnteraktif CLI kurulum (adım adım giriş)
-- ✅ Birden fazla sefer saati desteği (boşluk ile ayır)
-- ✅ Doğru sefer eşleştirme (`datetime` attribute ile)
-- ✅ EKONOMİ sınıfı koltuk sayısı tespiti
-- ✅ WhatsApp bildirimleri (Twilio Sandbox)
-- ✅ Bildirim cooldown - 1 saatte 1 mesaj, restart'ta sıfırlanmaz
-- ✅ Sefer bazlı cooldown (farklı saatler birbirini susturmaz)
-- ✅ Yanlış alarmı azaltan iki aşamalı koltuk doğrulaması
-- ✅ Art arda hata eşiği ve sistem düzeldi bildirimi
-- ✅ WhatsApp gerçek teslim durumu kontrolü
-- ✅ EKONOMİ / BUSINESS / LOCA için tekli veya çoklu seçim ve minimum koltuk sayısı
-- ✅ Hatalarda otomatik yavaşlayan, normalde ayarlanan aralığa dönen kontrol
-- ✅ Headless Chrome / Daemon modu (sunucuda çalışır)
-- ✅ `.env` ile kolay yapılandırma
+- Terminalden adım adım kurulum ve yönetim
+- TCDD’den alınan güncel istasyon listesinde arama ve numaralı seçim
+- Güzergâh ve tarihe göre sefer saatlerini otomatik getirme
+- Bir veya birden fazla seferi aynı anda takip etme
+- Ekonomi, Business ve Loca için tekli/çoklu seçim
+- Tekerlekli sandalye kontenjanını normal koltuk hesabından hariç tutma
+- Minimum boş koltuk sayısı belirleme
+- Yanlış alarmı azaltmak için iki aşamalı doğrulama
+- Sefer bazlı, yeniden başlatmalarda korunan bildirim cooldown’u
+- Art arda hata eşiği ve sistem düzeldi bildirimi
+- Twilio mesajının gerçek teslim durumunu kontrol etme
+- Hatalarda otomatik yavaşlayan kontrol aralığı
+- macOS, Linux ve Windows kurulum scriptleri
 
----
+## Gereksinimler
+
+- Python 3.9 veya üzeri
+- Google Chrome ya da Chromium
+- İnternet bağlantısı
+- WhatsApp bildirimleri için Twilio hesabı ve WhatsApp Sandbox
 
 ## Kurulum
 
-### Gereksinimler
-
-- Python 3.9+
-- Google Chrome veya Chromium (macOS, Windows ve Linux desteklenir)
-- Ubuntu sunucu için en az 1GB RAM + 1GB swap önerilir
-
-### 1. Bağımlılıkları Yükle
-
-Otomatik kurulum (macOS/Linux):
+### macOS / Linux
 
 ```bash
+git clone https://github.com/garmoths/yht-catcher.git
+cd yht-catcher
 chmod +x yukle.sh
 ./yukle.sh
 ```
 
-Script Python sürümünü kontrol eder, `.venv` oluşturur, bağımlılıkları kurar
-ve `.env` yoksa `.env.example` üzerinden oluşturur. Var olan `.env` ve gizli
-bilgiler kesinlikle değiştirilmez.
+### Windows
 
-Otomatik kurulum (Windows):
-
-Dosya Gezgini'nden `yukle.bat` dosyasına çift tıklayın veya Komut İstemi'nde:
+Projeyi indirdikten sonra `yukle.bat` dosyasına çift tıklayın veya Komut İstemi’nde:
 
 ```bat
 yukle.bat
 ```
 
-PowerShell üzerinden doğrudan çalıştırmak için:
+PowerShell ile doğrudan çalıştırmak için:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\yukle.ps1
 ```
 
-Windows'ta botu daha sonra şu komutla açabilirsiniz:
+Kurulum scriptleri:
 
-```bat
-.venv\Scripts\python.exe main.py
-```
+- Python sürümünü kontrol eder.
+- `.venv` sanal ortamını oluşturur.
+- Gerekli paketleri kurup doğrular.
+- `.env` yoksa güvenli `.env.example` üzerinden oluşturur.
+- Var olan `.env` ve gizli bilgileri değiştirmez.
+- Chrome/Chromium kurulumunu kontrol eder.
 
-Elle kurulum:
+## İlk çalıştırma
 
-```bash
-pip install -r requirements.txt
-```
-
-### 2. Twilio WhatsApp Sandbox Kur
-
-1. [twilio.com](https://www.twilio.com/) → kaydol
-2. Console → Messaging → Try it out → Send a WhatsApp message
-3. Sandbox keyword'ünü öğren (örn. `join green-elephant`)
-4. **Kendi WhatsApp'ından** `+1 415 523 8886` numarasına `join <keyword>` yaz
-5. Account SID ve Auth Token'ı kaydet
-
-> ⚠️ Twilio Sandbox oturumu **72 saatte bir** süresi dolar. Bildirim gelmezse tekrar `join <keyword>` mesajı atman gerekir.
-
-### 3. `.env` Dosyasını Oluştur
-
-```env
-# TCDD Ayarları
-BINIS_ISTASYONU=ERYAMAN YHT
-INIS_ISTASYONU=SELÇUKLU YHT (KONYA)
-TARIH=2026-05-10
-SAAT=18:24
-SAAT_KONTROL=true
-
-# WhatsApp Twilio Ayarları
-TWILIO_ACCOUNT_SID=your_account_sid
-TWILIO_AUTH_TOKEN=your_auth_token
-TWILIO_WHATSAPP_NUMBER=whatsapp:+14155238886
-KULLANICI_WHATSAPP_NUMARASI=whatsapp:+90xxxxxxxxxx
-
-# Kontrol Sıklığı (saniye) - 300 = 5 dakika
-KONTROL_SIKLIGI=300
-```
-
-> `SAAT` alanına birden fazla saat girebilirsin: `SAAT=06:44 18:24`
-
----
-
-## Kullanım
-
-### İnteraktif Mod (Varsayılan)
+macOS / Linux:
 
 ```bash
 .venv/bin/python main.py
 ```
 
-Terminal menüsünden ayarları görebilir/değiştirebilir, botu başlatabilir,
-tek kontrol yapabilir veya WhatsApp testi gönderebilirsin. `.env` dosyasını
-elle düzenlemek gerekmez ve Twilio bilgileri ayar değişimlerinde korunur.
+Windows:
+
+```bat
+.venv\Scripts\python.exe main.py
+```
+
+Ana menü:
 
 ```text
 1) Ayarları göster
@@ -125,113 +88,127 @@ elle düzenlemek gerekmez ve Twilio bilgileri ayar değişimlerinde korunur.
 0) Çıkış
 ```
 
-İstasyon seçerken bot güncel listeyi doğrudan TCDD sayfasından alır. Kullanıcı
-şehir veya istasyon adının bir bölümünü yazar ve eşleşen sonuçlardan numara
-seçer. Böylece istasyon adının veya kelime sırasının değişmesi `.env` ayarını
-elle düzeltmeyi gerektirmez. Liste alınamazsa elle giriş seçeneğine geri döner.
+## Takip ayarları
 
-Bölüm seçiminde `1`, `1 2`, `2 3` veya `hepsi` yazılabilir. Ekonomi, Business
-ve Loca birlikte ya da ayrı ayrı takip edilebilir. Tekerlekli sandalye kontenjanı
-özel kullanım alanı olduğu için seçeneklerde gösterilmez ve boş koltuk hesabına
-kesinlikle katılmaz.
+`2) Ayarları değiştir` seçildiğinde:
 
-Güzergâh ve tarih seçildikten sonra o günün güncel sefer saatleri TCDD'den
-otomatik alınır ve numaralı gösterilir. Kullanıcı `1`, `1 3` veya `hepsi`
-yazarak birden fazla sefer seçebilir. TCDD sorgusu geçici olarak başarısız olursa
-manuel saat girişi otomatik yedek olarak açılır.
+1. Güncel istasyonlar TCDD’den alınır.
+2. Biniş ve iniş istasyonu isimle aranıp numarayla seçilir.
+3. Tarih girilir.
+4. O günün sefer saatleri otomatik getirilir.
+5. Bir veya birden fazla sefer seçilir.
+6. Takip edilecek bölümler ve minimum koltuk sayısı belirlenir.
 
-İlk açılışta Twilio bilgilerinin eksik veya örnek değer olduğu anlaşılırsa bot
-uyarı verir. Auth Token terminalde görünmeden girilir. Telefon numarası `05...`
-biçiminde yazılırsa otomatik olarak `whatsapp:+905...` biçimine çevrilir.
+Saat seçimi örnekleri:
 
-### Daemon Modu (Sunucu)
-
-```bash
-nohup python3 main.py daemon > yht.log 2>&1 &
+```text
+1      Yalnızca birinci sefer
+1 3    Birinci ve üçüncü sefer
+hepsi  Listelenen tüm seferler
 ```
 
-Arka planda çalışır. Logları izlemek için:
+Bölüm seçimi:
 
-```bash
-tail -f yht.log
+```text
+1) Ekonomi
+2) Business
+3) Loca
 ```
 
-Durdurmak için:
+`1`, `1 2`, `2 3` veya `hepsi` yazılabilir. Tekerlekli sandalye kontenjanı menüde gösterilmez ve uygunluk hesabına katılmaz.
+
+## WhatsApp kurulumu
+
+1. [Twilio Console](https://console.twilio.com/) üzerinden bir hesap oluşturun.
+2. WhatsApp Sandbox sayfasını açın.
+3. Sayfadaki `join <sandbox-kodu>` mesajını alıcı WhatsApp numarasından Sandbox numarasına gönderin.
+4. Bot menüsünde `6) WhatsApp ayarları` seçeneğini açın.
+5. Account SID, Auth Token, gönderen ve alıcı numaralarını girin.
+6. `5) WhatsApp testi gönder` ile teslimatı doğrulayın.
+
+Auth Token terminalde görünmeden alınır. `05...` biçiminde yazılan Türkiye numarası otomatik olarak `whatsapp:+905...` biçimine çevrilir.
+
+Twilio Sandbox katılımı zaman aşımına uğrayabilir. `63015` hatasında güncel `join` kodunu aynı alıcı WhatsApp hesabından yeniden gönderin.
+
+## Komut satırı modları
+
+Tek kontrol:
 
 ```bash
-pkill -f 'main.py daemon'
+.venv/bin/python main.py once
 ```
 
----
-
-## Sunucuya Deploy
+Sürekli takip:
 
 ```bash
-# Dosyaları gönder
-scp tcdd_checker.py main.py config.py whatsapp_notifier.py .env requirements.txt root@SUNUCU_IP:/root/yht_catcher/
-
-# Sunucuya bağlan
-ssh root@SUNUCU_IP
-
-# Bağımlılıkları kur (ilk seferinde)
-cd /root/yht_catcher
-pip3 install -r requirements.txt
-
-# Google Chrome kur (ilk seferinde)
-wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
-echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
-apt-get update && apt-get install -y google-chrome-stable
-
-# Swap ekle (512MB RAM sunucular için gerekli)
-dd if=/dev/zero of=/swap2 bs=1M count=1024 && chmod 600 /swap2 && mkswap /swap2 && swapon /swap2
-
-# Daemon başlat
-nohup python3 main.py daemon > yht.log 2>&1 &
+.venv/bin/python main.py daemon
 ```
 
----
-
-## Ayar Güncelleme (`.env` değiştirince)
+WhatsApp testi:
 
 ```bash
-# Yeni ayarı gönder
-scp .env root@SUNUCU_IP:/root/yht_catcher/
-
-# Daemon'ı yeniden başlat
-ssh root@SUNUCU_IP "pkill -f 'main.py daemon'; cd /root/yht_catcher && nohup python3 main.py daemon > yht.log 2>&1 &"
+.venv/bin/python main.py test
 ```
 
----
+Arka planda Linux/macOS kullanımı:
 
-## İstasyon İsimleri
+```bash
+nohup .venv/bin/python main.py daemon > yht.log 2>&1 &
+```
 
-TCDD web sitesindeki ile birebir aynı olmalı:
+## Bildirim davranışı
 
-- `ERYAMAN YHT`
-- `Ankara Gar`
-- `SELÇUKLU YHT (KONYA)`
-- `İstanbul(Söğütlüçeşme)`
-- `İstanbul(Pendik)`
-- `Eskişehir`
-
----
-
-## Bildirim Sistemi
-
-- Boş yer bulununca WhatsApp mesajı gönderilir
-- Aynı bildirim **1 saat içinde tekrar atılmaz** (cooldown)
-- Cooldown bilgisi `.last_notify` dosyasına kaydedilir, daemon restart'ta sıfırlanmaz
-- Bildirim gelmezse: Twilio sandbox oturumunu yenile (`join <keyword>`)
-
----
+- Koltuk ilk kontrolde bulunursa ikinci kez doğrulanır.
+- İkinci kontrol de olumluysa WhatsApp bildirimi gönderilir.
+- Cooldown güzergâh, tarih, saat ve bölüm seçimine göre ayrı tutulur.
+- Cooldown yalnızca mesaj gerçekten gönderilebilirse başlatılır.
+- İlk geçici hatalar loglanır; belirlenen ardışık hata eşiğinde WhatsApp uyarısı gönderilir.
+- Sistem yeniden sağlıklı çalıştığında iyileşme bildirimi gönderilir.
 
 ## Güvenlik
 
-- ⚠️ Bu araç eğitim amaçlıdır
-- ⚠️ TCDD ile resmi ilişkisi yoktur
-- ⚠️ `.env` dosyasını git'e commit etme
-- ⚠️ Aşırı istek göndermekten kaçın
+Gerçek kimlik bilgileri yalnızca `.env` dosyasında tutulmalıdır. Aşağıdaki dosyalar Git tarafından dışlanır:
+
+```text
+.env
+.venv/
+.bot_state.json
+debug_page.html
+screenshot.png
+*.log
+```
+
+- Auth Token veya kişisel telefon numarasını kaynak koda yazmayın.
+- `.env.example` yalnızca örnek değerler içermelidir.
+- GitHub push protection ve secret scanning özelliklerini etkin tutun.
+- Yanlışlıkla paylaşılan token’ı silmekle yetinmeyin; sağlayıcı panelinden yenileyin.
+
+Gitleaks ile yerel tarama:
+
+```bash
+gitleaks git --redact --no-banner .
+```
+
+Bu komut Git geçmişindeki ve commit edilmiş dosyalardaki sırları tarar. Yerel `.env`
+dosyasının sır içermesi normaldir; önemli olan bu dosyanın Git'e eklenmemesidir.
+
+## Testler
+
+```bash
+.venv/bin/python -W error -m py_compile *.py tests/test_bot.py
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python -m pip check
+```
+
+Testler; çoklu saat/bölüm seçimi, iki aşamalı doğrulama, cooldown, hata eşiği, Twilio teslim sonucu ve tekerlekli sandalye kontenjanının dışlanmasını kapsar.
+
+## Sınırlamalar
+
+- TCDD arayüzü tamamen değişirse seçicilerin güncellenmesi gerekebilir.
+- Sandbox üretim ortamı değildir ve katılım süresi dolabilir.
+- Otomasyon bilet satın almaz; yalnızca uygunluk bildirimi gönderir.
+- Aynı anda tek güzergâh ve birden fazla sefer takip edilir.
 
 ## Lisans
 
-MIT License
+MIT
