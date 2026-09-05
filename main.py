@@ -10,9 +10,21 @@ from datetime import datetime
 from bot_state import BotState
 from settings import normalize_classes, validate_settings
 from terminal_ui import (
+    RESET,
+    BOLD,
+    DIM,
+    CYAN,
+    GREEN,
+    YELLOW,
+    BLUE,
+    MAGENTA,
+    RED,
+    BRIGHT_WHITE,
+    divider,
     configuration_issues,
     configure_interactively,
     configure_whatsapp,
+    choose_test_mode,
     main_menu,
     show_help,
 )
@@ -23,25 +35,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-BANNER = r"""
-╔══════════════════════════════════════════════════════════════════╗
-║                                                                  ║
-║                    ^~^  ,                                        ║
-║                   ('Y') )                                         ║
-║                   /   \/                                         ║
-║                  (\|||/)  TCDD BİLET BULUCU                        ║
-║                   (o o)                                          ║
-║                   ( = )                                          ║
-║                   (" ")                                          ║
-║                    ~W~                                           ║
-║                                                                  ║
-║              (\_/)                                               ║
-║              (o.o)                                               ║
-║              (> <)                                               ║
-║              ( \ )                                               ║
-║               'ww'                                               ║
-║                                                                  ║
-╚══════════════════════════════════════════════════════════════════╝
+BANNER = f"""
+{CYAN}╭─────────────────────────────────────────────────────────────╮
+│ {BOLD}{BRIGHT_WHITE}🚄  YHT CATCHER — Koltuk Takip ve Bildirim Botu{RESET}{CYAN}             │
+│ {DIM}TCDD YHT seferlerinde boş yer takibi ve WhatsApp bildirimi{RESET}{CYAN}  │
+╰─────────────────────────────────────────────────────────────╯{RESET}
 """
 
 
@@ -303,17 +301,29 @@ def create_catcher_from_env():
 
 def show_settings():
     load_dotenv(override=True)
-    print("\nMevcut ayarlar")
-    print("- Güzergâh:", os.getenv('BINIS_ISTASYONU'), "→", os.getenv('INIS_ISTASYONU'))
-    print("- Tarih:", os.getenv('TARIH'))
-    print("- Saatler:", os.getenv('SAAT'))
-    print("- Bölümler:", os.getenv('VAGON_SINIFLARI', os.getenv('VAGON_SINIFI', 'EKONOMİ')))
-    print("- Minimum koltuk:", os.getenv('MINIMUM_KOLTUK', '1'))
-    print("- Kontrol aralığı:", os.getenv('KONTROL_SIKLIGI', '180'), "saniye")
+    divider()
+    print(f"{BOLD}{CYAN}📋  MEVCUT TAKİP VE SİSTEM AYARLARI{RESET}")
+    divider()
+    binis = os.getenv('BINIS_ISTASYONU', 'Belirtilmedi')
+    inis = os.getenv('INIS_ISTASYONU', 'Belirtilmedi')
+    tarih = os.getenv('TARIH', 'Belirtilmedi')
+    saatler = os.getenv('SAAT', 'Belirtilmedi')
+    bolumler = os.getenv('VAGON_SINIFLARI', os.getenv('VAGON_SINIFI', 'EKONOMİ'))
+    min_koltuk = os.getenv('MINIMUM_KOLTUK', '1')
+    aralik = os.getenv('KONTROL_SIKLIGI', '180')
+    alici = os.getenv('KULLANICI_WHATSAPP_NUMARASI', 'Ayarlanmadı')
+
+    print(f"  📍 {BOLD}Güzergâh        :{RESET} {binis} → {inis}")
+    print(f"  📅 {BOLD}Tarih           :{RESET} {tarih}")
+    print(f"  🕐 {BOLD}Takip Saatleri  :{RESET} {saatler}")
+    print(f"  💺 {BOLD}Vagon Sınıfları :{RESET} {bolumler}")
+    print(f"  🎯 {BOLD}Min. Koltuk     :{RESET} {min_koltuk}")
+    print(f"  ⏱️  {BOLD}Kontrol Aralığı :{RESET} {aralik} saniye")
+    print(f"  📱 {BOLD}WhatsApp Alıcı  :{RESET} {alici}")
+    divider()
 
 
 def main():
-    # Komut satırı argümanlarını kontrol et
     mode = "interactive"  # varsayılan: interaktif mod
 
     if len(sys.argv) > 1:
@@ -324,34 +334,23 @@ def main():
         load_dotenv()
         notifier = WhatsAppNotifier()
         notifier.setup()
-        logger.info("Test modu çalıştırılıyor...")
+        logger.info("WhatsApp test modu çalıştırılıyor...")
         notifier.send_test_notification()
         return
 
     if mode == "once":
-        # .env'den ayarları oku, tek seferlik kontrol
         load_dotenv()
-        binis = os.getenv('BINIS_ISTASYONU')
-        inis = os.getenv('INIS_ISTASYONU')
-        tarih = os.getenv('TARIH')
         saatler = os.getenv('SAAT', '').split()
-
         catcher = create_catcher_from_env()
-        logger.info("Tek seferlik kontrol çalıştırılıyor...")
+        logger.info("Tek seferlik kontrol başlatılıyor...")
         for saat in saatler:
             catcher.run_once(saat=saat)
         return
 
     if mode == "daemon":
-        # Sunucu modu - .env'den ayarları oku, arka planda sürekli çalış
         load_dotenv()
-        binis = os.getenv('BINIS_ISTASYONU')
-        inis = os.getenv('INIS_ISTASYONU')
-        tarih = os.getenv('TARIH')
-        saatler = os.getenv('SAAT', '').split()
-
         catcher = create_catcher_from_env()
-        logger.info("Daemon modu başlatılıyor (sunucu)...")
+        logger.info("Daemon modu başlatılıyor (arka planda sürekli çalışma)...")
         catcher.run_continuous()
         return
 
@@ -359,52 +358,66 @@ def main():
     load_dotenv(override=True)
     issues = configuration_issues()
     if issues:
-        print("⚠️  Kurulum tamamlanmamış:")
+        divider("═")
+        print(f"{YELLOW}{BOLD}⚠️  BİLDİRİM KURULUMU TAMAMLANMAMIŞ:{RESET}")
         for issue in issues:
-            print("   -", issue)
-        print("Menüden 'WhatsApp ayarları' ve 'Kurulum yardımı' seçeneklerini kullanın.")
+            print(f"   {RED}•{RESET} {issue}")
+        print(f"\n{DIM}Ana menüden 2'yi seçerek WhatsApp/Twilio bilgilerinizi girebilirsiniz.{RESET}")
+        divider("═")
+
     while True:
         choice = main_menu()
         if choice == "0":
+            print(f"\n{CYAN}Görüşmek üzere! 👋{RESET}\n")
             return
         if choice == "1":
-            show_settings()
-        elif choice == "2":
             configure_interactively()
             load_dotenv(override=True)
-        elif choice == "3":
-            load_dotenv(override=True)
-            issues = configuration_issues()
-            if issues:
-                print("Bot başlatılamadı:", "; ".join(issues))
-                print("Önce 6 numaralı WhatsApp ayarlarını tamamlayın.")
-                continue
-            show_settings()
-            print("\nSürekli kontrol başlatılıyor... (Ctrl+C ile durdur)")
-            create_catcher_from_env().run_continuous()
-        elif choice == "4":
-            catcher = create_catcher_from_env()
-            try:
-                for saat in catcher.saatler:
-                    catcher.run_once(saat)
-            finally:
-                catcher.checker.close_driver()
-        elif choice == "5":
-            load_dotenv(override=True)
-            issues = configuration_issues()
-            if issues:
-                print("WhatsApp testi yapılamadı:", "; ".join(issues))
-                continue
-            notifier = WhatsAppNotifier()
-            notifier.setup()
-            notifier.send_test_notification()
-        elif choice == "6":
+        elif choice == "2":
             try:
                 configure_whatsapp()
                 load_dotenv(override=True)
             except ValueError as exc:
-                print("WhatsApp ayarı kaydedilemedi:", exc)
-        elif choice == "7":
+                print(f"{RED}Bildirim ayarı kaydedilemedi: {exc}{RESET}")
+        elif choice == "3":
+            load_dotenv(override=True)
+            issues = configuration_issues()
+            if issues:
+                print(f"\n{RED}⚠️  Bildirim kurulumu eksik: {'; '.join(issues)}{RESET}")
+                print(f"{YELLOW}Lütfen önce 2) Bildirim ayarları (WhatsApp) bölümünü tamamlayın.{RESET}")
+                continue
+            show_settings()
+            print(f"\n{GREEN}{BOLD}▶️  Takip başlatılıyor... (Durdurmak için Ctrl+C){RESET}\n")
+            create_catcher_from_env().run_continuous()
+        elif choice == "4":
+            test_choice = choose_test_mode()
+            if test_choice == "1":
+                load_dotenv(override=True)
+                issues = configuration_issues()
+                if issues:
+                    print(f"{RED}WhatsApp testi yapılamadı: {'; '.join(issues)}{RESET}")
+                    continue
+                notifier = WhatsAppNotifier()
+                notifier.setup()
+                print(f"\n{YELLOW}✉️  WhatsApp test mesajı gönderiliyor...{RESET}")
+                notifier.send_test_notification()
+            elif test_choice == "2":
+                load_dotenv(override=True)
+                issues = configuration_issues()
+                if issues:
+                    print(f"\n{RED}⚠️  Tek kontrol için bildirim ayarları gerekli: {'; '.join(issues)}{RESET}")
+                    print(f"{YELLOW}Lütfen önce 2) Bildirim ayarları (WhatsApp) bölümünü tamamlayın.{RESET}")
+                    continue
+                catcher = create_catcher_from_env()
+                try:
+                    print(f"\n{BLUE}🔍 Seçili seferler için tek seferlik kontrol yapılıyor...{RESET}")
+                    for saat in catcher.saatler:
+                        catcher.run_once(saat)
+                finally:
+                    catcher.checker.close_driver()
+        elif choice == "5":
+            show_settings()
+        elif choice == "6":
             show_help()
 
 

@@ -1,14 +1,32 @@
 import os
 import getpass
+import logging
 import unicodedata
 from datetime import datetime
 
 from settings import ALLOWED_CLASSES, normalize_classes, update_env, validate_settings
 from tcdd_checker import TCDDTicketChecker
 
+# Terminal Renkleri ve Biçimlendirme
+RESET = "\033[0m"
+BOLD = "\033[1m"
+DIM = "\033[2m"
+CYAN = "\033[36m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+BLUE = "\033[34m"
+MAGENTA = "\033[35m"
+RED = "\033[31m"
+BRIGHT_WHITE = "\033[97m"
+
+
+def divider(char="─", length=56):
+    print(f"{DIM}{char * length}{RESET}")
+
 
 def _ask(label, default):
-    value = input(f"{label} [{default}]: ").strip()
+    prompt_text = f"{label} {DIM}[{default}]{RESET}: "
+    value = input(prompt_text).strip()
     return value or str(default)
 
 
@@ -20,51 +38,58 @@ def _normalize(value):
 def choose_station(label, current, stations):
     """Güncel listede arama yaptırıp istasyonu numarayla seçtirir."""
     while True:
-        query = input(f"{label} için ara [{current}]: ").strip()
+        prompt_text = f"{label} için ara {DIM}[{current}]{RESET}: "
+        query = input(prompt_text).strip()
         if not query:
             return current
         normalized_query = _normalize(query)
         matches = [station for station in stations if normalized_query in _normalize(station)]
         if not matches:
-            print("Eşleşme bulunamadı. İlçe, şehir veya istasyon adının bir bölümünü yazın.")
+            print(f"{YELLOW}⚠️  Eşleşme bulunamadı. Şehir veya istasyon adının bir kısmını yazın.{RESET}")
             continue
         shown = matches[:30]
         print()
         for index, station in enumerate(shown, 1):
-            print(f"{index:>2}) {station}")
+            print(f"  {CYAN}{index:>2}){RESET} {station}")
         if len(matches) > len(shown):
-            print(f"... {len(matches) - len(shown)} sonuç daha var; aramayı daraltın.")
-        selection = input("Numara seç (yeniden aramak için Enter): ").strip()
+            print(f"{DIM}  ... {len(matches) - len(shown)} sonuç daha var; aramayı daraltabilirsiniz.{RESET}")
+        print()
+        selection = input(f"{BOLD}Numara seç{RESET} {DIM}(yeniden aramak için Enter){RESET}: ").strip()
         if not selection:
             continue
         try:
             return shown[int(selection) - 1]
         except (ValueError, IndexError):
-            print("Geçersiz numara.")
+            print(f"{RED}Geçersiz numara! Listedeki numaralardan birini girin.{RESET}")
 
 
 def load_current_stations():
-    print("\nGüncel istasyon adları TCDD'den alınıyor; bu işlem birkaç saniye sürebilir...")
+    print(f"\n{YELLOW}⏳ Güncel istasyon listesi TCDD'den alınıyor... (birkaç saniye sürebilir){RESET}")
+    prev_level = logging.getLogger("tcdd_checker").level
+    logging.getLogger("tcdd_checker").setLevel(logging.WARNING)
     try:
         stations = TCDDTicketChecker(headless=True).get_stations()
-        print(f"{len(stations)} istasyon yüklendi.")
+        print(f"{GREEN}✓ {len(stations)} istasyon başarıyla yüklendi.{RESET}")
         return stations
     except Exception as exc:
-        print(f"İstasyon listesi alınamadı: {exc}")
-        print("İstasyon adlarını elle girebilirsiniz.")
+        print(f"{RED}✗ İstasyon listesi otomatik alınamadı: {exc}{RESET}")
+        print(f"{DIM}İstasyon adını elle girebilirsiniz.{RESET}")
         return None
+    finally:
+        logging.getLogger("tcdd_checker").setLevel(prev_level)
 
 
 def choose_classes(current):
     current_classes = normalize_classes(current)
-    print("\nTakip edilecek bölümler:")
-    print("1) Ekonomi")
-    print("2) Business")
-    print("3) Loca")
-    print("Tekerlekli sandalye kontenjanı takip edilmez.")
+    print(f"\n{BOLD}Takip Edilecek Vagon Bölümleri:{RESET}")
+    print(f"  {CYAN}1){RESET} Ekonomi")
+    print(f"  {CYAN}2){RESET} Business")
+    print(f"  {CYAN}3){RESET} Loca")
+    print(f"{DIM}  * Tekerlekli sandalye kontenjanı hesaba katılmaz.{RESET}")
     default_text = ", ".join(current_classes)
     while True:
-        selection = input(f"Seçim (örn. 1, 1 2, 2 3 veya hepsi) [{default_text}]: ").strip()
+        prompt_text = f"\nSeçim {DIM}(örn. 1, 1 2, 2 3 veya hepsi){RESET} [{default_text}]: "
+        selection = input(prompt_text).strip()
         if not selection:
             return current_classes
         if selection.casefold() in {"hepsi", "tümü", "tumu"}:
@@ -79,16 +104,17 @@ def choose_classes(current):
                 return selected
         except (ValueError, IndexError):
             pass
-        print("Geçersiz seçim. 1, 2 ve 3 numaralarını kullanın.")
+        print(f"{RED}Geçersiz seçim! Lütfen 1, 2, 3 veya 'hepsi' yazın.{RESET}")
 
 
 def choose_times(times, current):
-    print("\nBu gün için bulunan seferler:")
+    print(f"\n{BOLD}Bu gün için bulunan YHT seferleri:{RESET}")
     for index, departure_time in enumerate(times, 1):
-        print(f"{index:>2}) {departure_time}")
+        print(f"  {GREEN}{index:>2}){RESET} {BOLD}{departure_time}{RESET}")
     default_text = " ".join(current)
     while True:
-        selection = input(f"Seçim (örn. 1, 1 3 veya hepsi) [{default_text}]: ").strip()
+        prompt_text = f"\nSeçim {DIM}(örn. 1, 1 3 veya hepsi){RESET} [{default_text}]: "
+        selection = input(prompt_text).strip()
         if not selection:
             existing = [value for value in current if value in times]
             return existing or [times[0]]
@@ -104,11 +130,13 @@ def choose_times(times, current):
                 return selected
         except (ValueError, IndexError):
             pass
-        print("Geçersiz seçim; listedeki numaraları kullanın.")
+        print(f"{RED}Geçersiz seçim! Listedeki sefer numaralarını girin.{RESET}")
 
 
 def load_journey_times(binis, inis, tarih):
-    print("\nSeçilen günün seferleri TCDD'den alınıyor...")
+    print(f"\n{YELLOW}⏳ {tarih} tarihindeki sefer saatleri TCDD'den alınıyor...{RESET}")
+    prev_level = logging.getLogger("tcdd_checker").level
+    logging.getLogger("tcdd_checker").setLevel(logging.WARNING)
     try:
         formatted_date = datetime.strptime(tarih, "%Y-%m-%d").strftime("%d.%m.%Y")
         result = TCDDTicketChecker(headless=True).check_tickets(
@@ -116,49 +144,73 @@ def load_journey_times(binis, inis, tarih):
         )
         if result.get("success"):
             return result["times"]
-        print("Seferler alınamadı:", result.get("error", "Bilinmeyen hata"))
+        print(f"{RED}✗ Seferler alınamadı: {result.get('error', 'Bilinmeyen hata')}{RESET}")
     except Exception as exc:
-        print("Seferler alınamadı:", exc)
+        print(f"{RED}✗ Seferler alınamadı: {exc}{RESET}")
+    finally:
+        logging.getLogger("tcdd_checker").setLevel(prev_level)
     return None
 
 
 def configure_interactively():
-    """Kullanıcıyı dosya düzenletmeden güvenli biçimde yapılandırır."""
-    print("\nYHT BOT AYARLARI")
-    print("Enter'a basarsan mevcut değer korunur.\n")
+    """Kullanıcıyı tek, anlaşılır ve ferah bir takip ayarı akışında yönlendirir."""
+    print(f"\n{BOLD}{CYAN}══════════════════ 🛠️  TAKİP AYARLARI ══════════════════{RESET}")
+    print(f"{DIM}İstasyon adını yazıp listeden numarayla seçebilirsiniz.{RESET}")
+    print(f"{DIM}Enter'a basarsanız köşeli parantez içindeki mevcut değer korunur.{RESET}\n")
+
     current_binis = os.getenv("BINIS_ISTASYONU", "Ankara Gar")
     current_inis = os.getenv("INIS_ISTASYONU", "SELÇUKLU YHT (KONYA)")
     stations = load_current_stations()
+
+    divider()
     if stations:
-        binis = choose_station("1) Biniş istasyonu", current_binis, stations)
-        inis = choose_station("2) İniş istasyonu", current_inis, stations)
+        binis = choose_station(f"{CYAN}{BOLD}1/6{RESET} {BOLD}Nereden bineceksin?{RESET}", current_binis, stations)
     else:
-        binis = _ask("1) Biniş istasyonu", current_binis)
-        inis = _ask("2) İniş istasyonu", current_inis)
-    tarih = _ask("3) Tarih (YYYY-AA-GG)", os.getenv("TARIH", datetime.now().strftime("%Y-%m-%d")))
+        binis = _ask(f"{CYAN}{BOLD}1/6{RESET} {BOLD}Nereden bineceksin?{RESET}", current_binis)
+
+    divider()
+    if stations:
+        inis = choose_station(f"{CYAN}{BOLD}2/6{RESET} {BOLD}Nereye gideceksin?{RESET}", current_inis, stations)
+    else:
+        inis = _ask(f"{CYAN}{BOLD}2/6{RESET} {BOLD}Nereye gideceksin?{RESET}", current_inis)
+
+    divider()
+    tarih = _ask(f"{CYAN}{BOLD}3/6{RESET} {BOLD}Yolculuk tarihi (YYYY-AA-GG){RESET}", os.getenv("TARIH", datetime.now().strftime("%Y-%m-%d")))
+
+    divider()
     current_times = os.getenv("SAAT", "15:10").split()
     available_times = load_journey_times(binis, inis, tarih)
     if available_times:
         saatler = choose_times(available_times, current_times)
         saat_text = " ".join(saatler)
     else:
-        saat_text = _ask("4) Saatler (boşlukla ayır)", " ".join(current_times))
+        saat_text = _ask(f"{CYAN}{BOLD}4/6{RESET} {BOLD}Takip edilecek saatler (boşlukla ayır){RESET}", " ".join(current_times))
         saatler = saat_text.split()
-    aralik = _ask("5) Kontrol aralığı (saniye)", os.getenv("KONTROL_SIKLIGI", "180"))
+
+    divider()
+    aralik = _ask(f"{CYAN}{BOLD}5/6{RESET} {BOLD}Kaç saniyede bir kontrol edilsin?{RESET}", os.getenv("KONTROL_SIKLIGI", "180"))
+
+    divider()
     current_classes = os.getenv("VAGON_SINIFLARI", os.getenv("VAGON_SINIFI", "EKONOMİ"))
+    print(f"{CYAN}{BOLD}6/6{RESET} {BOLD}Vagon bölümlerini ve koltuk sayısını belirle:{RESET}")
     classes = choose_classes(current_classes)
-    minimum = _ask("7) Minimum boş koltuk", os.getenv("MINIMUM_KOLTUK", "1"))
+    minimum = _ask(f"\n{BOLD}En az kaç boş koltuk olsun?{RESET}", os.getenv("MINIMUM_KOLTUK", "1"))
+
     validate_settings(binis, inis, tarih, saatler, aralik, classes, minimum)
     update_env({
-        "BINIS_ISTASYONU": binis,
-        "INIS_ISTASYONU": inis,
-        "TARIH": tarih,
-        "SAAT": " ".join(saatler),
-        "KONTROL_SIKLIGI": str(int(aralik)),
-        "VAGON_SINIFLARI": ",".join(classes),
-        "MINIMUM_KOLTUK": str(int(minimum)),
+        "BINIS_ISTASYONU": binis, "INIS_ISTASYONU": inis, "TARIH": tarih,
+        "SAAT": saat_text, "KONTROL_SIKLIGI": str(int(aralik)),
+        "VAGON_SINIFLARI": ",".join(classes), "MINIMUM_KOLTUK": str(int(minimum)),
     })
-    print("\nAyarlar kaydedildi.")
+
+    divider("═")
+    print(f"{GREEN}{BOLD}✓ Takip ayarları başarıyla kaydedildi!{RESET}")
+    print(f"  📍 {BOLD}Güzergâh :{RESET} {binis} → {inis}")
+    print(f"  📅 {BOLD}Tarih    :{RESET} {tarih}")
+    print(f"  🕐 {BOLD}Saatler  :{RESET} {', '.join(saatler)}")
+    print(f"  💺 {BOLD}Bölümler :{RESET} {', '.join(classes)} (Min {minimum} koltuk)")
+    print(f"  ⏱️  {BOLD}Aralık   :{RESET} {aralik} sn")
+    divider("═")
     return {"binis": binis, "inis": inis, "tarih": tarih, "saatler": saatler}
 
 
@@ -188,14 +240,19 @@ def configuration_issues():
 
 
 def configure_whatsapp():
-    print("\nTWILIO WHATSAPP AYARLARI")
-    print("Bilgiler Twilio Console > Account Info ve WhatsApp Sandbox sayfasında bulunur.")
-    print("Auth Token ekranda gösterilmez ve yazarken terminalde görünmez.\n")
-    sid = _ask("Account SID", os.getenv("TWILIO_ACCOUNT_SID", ""))
+    print(f"\n{BOLD}{MAGENTA}════════════════ 📱 TWILIO WHATSAPP AYARLARI ════════════════{RESET}")
+    print(f"{DIM}Bilgiler Twilio Console > Account Info ve WhatsApp Sandbox sayfasında bulunur.{RESET}")
+    print(f"{DIM}Auth Token ekranda gösterilmez ve yazarken terminalde görünmez.{RESET}\n")
+
+    divider()
+    sid = _ask(f"{MAGENTA}{BOLD}1/4{RESET} {BOLD}Twilio Account SID{RESET}", os.getenv("TWILIO_ACCOUNT_SID", ""))
     current_token = os.getenv("TWILIO_AUTH_TOKEN", "")
-    token = getpass.getpass("Auth Token [mevcut değeri korumak için Enter]: ").strip() or current_token
-    sender = _ask("Sandbox gönderen numarası", os.getenv("TWILIO_WHATSAPP_NUMBER", "whatsapp:+14155238886"))
-    recipient = _ask("Alıcı numarası", os.getenv("KULLANICI_WHATSAPP_NUMARASI", "whatsapp:+90"))
+    token = getpass.getpass(f"{MAGENTA}{BOLD}2/4{RESET} {BOLD}Twilio Auth Token{RESET} {DIM}[mevcutu korumak için Enter]{RESET}: ").strip() or current_token
+    divider()
+    sender = _ask(f"{MAGENTA}{BOLD}3/4{RESET} {BOLD}Twilio WhatsApp Numarası (Sandbox){RESET}", os.getenv("TWILIO_WHATSAPP_NUMBER", "whatsapp:+14155238886"))
+    divider()
+    recipient = _ask(f"{MAGENTA}{BOLD}4/4{RESET} {BOLD}Bildirim Alacak Telefon Numarası{RESET}", os.getenv("KULLANICI_WHATSAPP_NUMARASI", "whatsapp:+90"))
+
     if recipient.startswith("0"):
         recipient = "whatsapp:+90" + recipient[1:]
     elif recipient.startswith("+"):
@@ -210,34 +267,59 @@ def configure_whatsapp():
         "TWILIO_WHATSAPP_NUMBER": sender,
         "KULLANICI_WHATSAPP_NUMARASI": recipient,
     })
-    print("WhatsApp ayarları kaydedildi. Menüden test mesajı gönderebilirsiniz.")
+    divider("═")
+    print(f"{GREEN}{BOLD}✓ WhatsApp bildirim ayarları başarıyla kaydedildi!{RESET}")
+    print(f"  Ana menüden 4'ü (Test et) seçerek test mesajı gönderebilirsiniz.")
+    divider("═")
 
 
 def show_help():
-    print("""
-HIZLI BAŞLANGIÇ
-1. 'Ayarları değiştir' ile istasyon, tarih ve saati seçin.
-2. 'WhatsApp ayarları' ile Twilio Sandbox bilgilerini girin.
-3. WhatsApp'tan Sandbox sayfasındaki 'join <kod>' mesajını gönderin.
-4. 'WhatsApp testi' ile teslimatı doğrulayın.
-5. 'Botu başlat' seçeneğini kullanın; durdurmak için Ctrl+C.
+    print(f"\n{BOLD}{BLUE}════════════════════ ❓ YARDIM VE BİLGİ ════════════════════{RESET}")
+    print(f"""
+  {BOLD}1. Takip Ayarları:{RESET}
+     Biniş, iniş istasyonunu, tarih ve takip etmek istediğin sefer saatlerini seç.
 
-Not: Sandbox üyeliği yaklaşık 3 gün sonra bitebilir. 63015 hatasında güncel
-join kodunu aynı alıcı WhatsApp numarasından yeniden gönderin.
+  {BOLD}2. Bildirim Ayarları:{RESET}
+     Twilio WhatsApp bilgilerini gir (bir kerelik kurulum).
+
+  {BOLD}3. Test Et:{RESET}
+     WhatsApp test mesajı veya tek seferlik kontrol ile doğrula.
+
+  {BOLD}4. Takibi Başlat:{RESET}
+     Sürekli kontrol botunu çalıştır. Durdurmak için {BOLD}Ctrl+C{RESET} yapabilirsin.
 """)
+    divider("═")
+
+
+def choose_test_mode():
+    while True:
+        divider()
+        print(f"{BOLD}{YELLOW}🧪  TEST SEÇENEKLERİ{RESET}")
+        divider()
+        print(f"  {YELLOW}{BOLD}1){RESET} ✉️  WhatsApp bildirim testi {DIM}(Mesaj iletimini test eder){RESET}")
+        print(f"  {BLUE}{BOLD}2){RESET} 🔍 Tek seferlik kontrol testi {DIM}(Bilet durumunu 1 kez tarar){RESET}")
+        print(f"  {DIM}{BOLD}0){RESET} ↩️  Ana menüye dön")
+        divider()
+        choice = input(f"{BOLD}Test seçimin (1 veya 2):{RESET} ").strip()
+        if choice in {"0", "1", "2"}:
+            return choice
+        print(f"{RED}Geçersiz seçim! Lütfen 1, 2 veya 0 girin.{RESET}")
 
 
 def main_menu():
     while True:
-        print("\n1) Ayarları göster")
-        print("2) Ayarları değiştir")
-        print("3) Botu başlat")
-        print("4) Tek kontrol yap")
-        print("5) WhatsApp testi gönder")
-        print("6) WhatsApp ayarları")
-        print("7) Kurulum yardımı")
-        print("0) Çıkış")
-        choice = input("Seçimin: ").strip()
-        if choice in {"0", "1", "2", "3", "4", "5", "6", "7"}:
+        divider()
+        print(f"{BOLD}{CYAN}📌  NE YAPMAK İSTİYORSUN?{RESET}")
+        divider()
+        print(f"  {CYAN}{BOLD}1){RESET} 🛠️  Takip ayarları {DIM}(Kur / Değiştir){RESET}")
+        print(f"  {MAGENTA}{BOLD}2){RESET} 📱 Bildirim ayarları {DIM}(WhatsApp){RESET}")
+        print(f"  {GREEN}{BOLD}3){RESET} ▶️  Takibi başlat {DIM}(Sürekli kontrol){RESET}")
+        print(f"  {YELLOW}{BOLD}4){RESET} 🧪 Test et {DIM}(WhatsApp veya tek kontrol){RESET}")
+        print(f"  {CYAN}{BOLD}5){RESET} 📋 Mevcut ayarları göster")
+        print(f"  {BLUE}{BOLD}6){RESET} ❓ Yardım")
+        print(f"  {RED}{BOLD}0){RESET} 🚪 Çıkış")
+        divider()
+        choice = input(f"{BOLD}Seçimin:{RESET} ").strip()
+        if choice in {"0", "1", "2", "3", "4", "5", "6"}:
             return choice
-        print("Geçersiz seçim.")
+        print(f"{RED}Geçersiz seçim! Lütfen menüdeki rakamlardan birini girin.{RESET}")

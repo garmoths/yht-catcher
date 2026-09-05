@@ -7,3 +7,5 @@ __pycache__/
 debug_page.html
 screenshot.png
 *.log
+.DS_Store
+*.DS_Store
