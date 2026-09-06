@@ -1,6 +1,5 @@
 requests
 twilio
-schedule
 python-dotenv
 selenium
 webdriver-manager

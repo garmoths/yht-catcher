@@ -171,7 +171,7 @@ class ResultParsingTests(unittest.TestCase):
     def test_full_economy_does_not_count_wheelchair_seats(self):
         checker = TCDDTicketChecker(debug_file=os.devnull)
         checker.driver = Mock()
-        with open("debug_page.html", encoding="utf-8") as page_file:
+        with open(os.path.join(os.path.dirname(__file__), "..", "debug_page.html"), encoding="utf-8") as page_file:
             checker.driver.page_source = page_file.read()
         checker.driver.execute_script.return_value = "NO_EXPANDED"
         result = checker.analyze_results("15:10", sinif="EKONOMİ", minimum_koltuk=1)
@@ -181,7 +181,7 @@ class ResultParsingTests(unittest.TestCase):
     def test_all_classes_exclude_wheelchair_inventory(self):
         checker = TCDDTicketChecker(debug_file=os.devnull)
         checker.driver = Mock()
-        with open("debug_page.html", encoding="utf-8") as page_file:
+        with open(os.path.join(os.path.dirname(__file__), "..", "debug_page.html"), encoding="utf-8") as page_file:
             checker.driver.page_source = page_file.read()
         checker.driver.execute_script.return_value = "NO_EXPANDED"
         result = checker.analyze_results(

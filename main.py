@@ -98,19 +98,19 @@ class YHTCatcher:
     def run_once(self, saat=None):
         """Tek seferlik bilet kontrolü yapar"""
         check_saat = saat or (self.saatler[0] if self.saatler else None)
+        notification_key = self._notification_key(check_saat)
 
         logger.info(f"Güzergah: {self.binis_istasyonu} -> {self.inis_istasyonu}, Tarih: {self.tarih}, Saat: {check_saat}")
 
         result = self._check(check_saat)
 
         if result.get("success") and result.get("found_seats"):
-            notification_key = self._notification_key(check_saat)
             if not self.state.can_notify(notification_key, self.notification_cooldown):
                 logger.info("Bu sefer için bildirim cooldown süresi dolmadı")
                 self.state.record_success()
                 return result
-            for attempt in range(1, self.confirmation_checks):
-                logger.info("Koltuk sonucu doğrulanıyor (%s/%s)...", attempt + 1, self.confirmation_checks)
+            for attempt in range(self.confirmation_checks - 1):
+                logger.info("Koltuk sonucu doğrulanıyor (%s/%s)...", attempt + 2, self.confirmation_checks)
                 self.sleep(2)
                 confirmation = self._check(check_saat)
                 if not confirmation.get("success") or not confirmation.get("found_seats"):
@@ -174,7 +174,8 @@ class YHTCatcher:
                     if not cycle_success:
                         current_interval = min(max(self.kontrol_sikligi, 900), current_interval * 2)
                     elif found_any:
-                        current_interval = max(60, min(self.kontrol_sikligi, 60))
+                        # Boş koltuk bulundu, hızlı kontrol moduna geç (60 sn)
+                        current_interval = 60
                     else:
                         current_interval = self.kontrol_sikligi
                     logger.info("Bir sonraki kontrol %s saniye sonra...", current_interval)
